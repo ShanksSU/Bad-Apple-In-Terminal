@@ -1,4 +1,4 @@
-# Bad-Apple-In-Terminal
+# Bad-Apple-In-Terminal-For-C++ & OpenCV
 The code is for show the "Touhou Bad Apple!! ＰＶ" in terminal.
 
 ## YouTube Link:

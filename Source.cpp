@@ -1,103 +1,157 @@
-﻿#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 #include <opencv2/core.hpp>
-#include <cstdio>
-#include <stdio.h>
-#include <fstream>
-#include <vector>
 #include <iostream>
-#include <string>
 #include <windows.h>
-#include <Mmsystem.h>
-#include <filesystem>
-#include <thread>
+#include <conio.h>
+#include <string>
+#include <sstream>
 
-#pragma comment(lib,"winmm.lib")
+#define hConsole GetStdHandle(STD_OUTPUT_HANDLE)
+#define ConsoleClear() SetConsoleCursorPosition(hConsole, { 0, 0 })
+#define GetRGB(r, g, b, Pixel) ( \
+    std::string("\x1b[38;2;") + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m" + Pixel \
+)
 
-using namespace cv;
-using namespace std;
-
-char ascii_char[70] = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
-float unit = 3.7246;
-
-ofstream file;
-string save;
-
-void terminalset() {
-
-    SetConsoleTitleA("Bad_Apple");
-    system("mode con cols=352 lines=122");
-    //SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_INTENSITY | FOREGROUND_RED | BACKGROUND_BLUE | BACKGROUND_INTENSITY);
-
-    HANDLE hout = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO info = { 1, 0 };
-    SetConsoleCursorInfo(hout, &info);
-
+#define HideConsoleCursor() { \
+    CONSOLE_CURSOR_INFO cursorInfo; \
+    GetConsoleCursorInfo(hConsole, &cursorInfo); \
+    cursorInfo.bVisible = false; \
+    SetConsoleCursorInfo(hConsole, &cursorInfo); \
 }
 
-void txtwrite();
-void play() {
-    
-    VideoCapture cap("Resources\\Bad_Apple.mp4");
-    Mat image, resizeImage, gray;
-    Mat detection_image = image.clone();
+std::pair<int, int> GetTerminalSize() {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    return std::make_pair(csbi.srWindow.Right - csbi.srWindow.Left + 1, csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+}
 
-    if (!cap.isOpened()) {
-
-        MessageBoxW(NULL, L"Load Video Error", L"Bad Apple in termial Error", MB_ICONERROR);
-        return;
-    }
-
-    try {
-        while (true) {
-            
-            string txt = "";
-            cap.read(detection_image);
-            cvtColor(detection_image, gray, COLOR_BGR2GRAY);
-            resize(gray, resizeImage, Size(350,120));  //192,54(16:9), 150,100 || 180,100(9:16) , 200,100(1:1)
-
-            int rowNumber = resizeImage.rows;
-            int colNumber = resizeImage.cols;
-
-            for (int i = 0; i < rowNumber; i++) {
-                for (int j = 0; j < colNumber; j++) {
-                    txt += ascii_char[int((resizeImage.at<uchar>(i, j)) / unit)];
+class PixelPlayer {
+public:
+    void operator()(cv::VideoCapture cap, int delay) {
+        cv::Mat detection_image, resizeImage;
+        try {
+            while (true) {
+                bool ref = cap.read(detection_image);
+                if (!ref) {
+                    MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
+                    break;
                 }
-                txt += '\n';
+                int x = GetTerminalSize().first;
+                int y = GetTerminalSize().second;
+                resize(detection_image, resizeImage, cv::Size(x, y - 1));
+
+                int rowNumber = resizeImage.rows;
+                int colNumber = resizeImage.cols;
+
+                ConsoleClear();
+                std::stringstream ss;
+                for (int i = 0; i < rowNumber; i++) {
+                    for (int j = 0; j < colNumber; j++) {
+                        int r = resizeImage.at<cv::Vec3b>(i, j)[2];
+                        int g = resizeImage.at<cv::Vec3b>(i, j)[1];
+                        int b = resizeImage.at<cv::Vec3b>(i, j)[0];
+                        ss << GetRGB(r, g, b, "█");
+                    }
+                    ss << std::endl;
+                }
+                printf_s("%s", ss.str().c_str());
+                resizeImage.release();
+                detection_image.release();
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+
+                if (_kbhit()) {
+                    char key = _getch();
+                    if (key == 27) {
+                        break;
+                    }
+                }
             }
-            const char* c = txt.c_str();
-            printf_s("%s", c);
-
-            imshow("Bad_Apple", detection_image);
-            waitKey(10);
-            system("cls");
-
-            save = txt;
-            thread t1(txtwrite);
-            t1.detach();
+            resizeImage.release();
+            detection_image.release();
+            cv::destroyAllWindows();
+        }
+        catch (...) {
+            return;
         }
     }
-    catch (...) {
-        return;
+}PlayerP;
+
+class ASCIIPlayer {
+public:
+    void operator() (cv::VideoCapture cap, int delay) {
+        char ascii_char[70] = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+        float unit = 3.723;
+        cv::Mat detection_image, resizeImage, gray;
+        try {
+            while (true) {
+                bool ref = cap.read(detection_image);
+                if (!ref) {
+                    MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
+                    break;
+                }
+                int x = GetTerminalSize().first;
+                int y = GetTerminalSize().second;
+                resize(detection_image, resizeImage, cv::Size(x, y - 1));
+                cvtColor(resizeImage, gray, cv::COLOR_BGR2GRAY);
+                bitwise_not(gray, gray);
+
+                int rowNumber = resizeImage.rows;
+                int colNumber = resizeImage.cols;
+
+                ConsoleClear();
+                std::stringstream ss;
+                for (int i = 0; i < rowNumber; i++) {
+                    for (int j = 0; j < colNumber; j++) {
+                        ss << ascii_char[int(gray.at<uchar>(i, j) / unit)];
+                    }
+                    ss << std::endl;
+                }
+                printf_s("%s", ss.str().c_str());
+                gray.release();
+                resizeImage.release();
+                detection_image.release();
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay / 30));
+
+                if (_kbhit()) {
+                    char key = _getch();
+                    if (key == 27) {
+                        break;
+                    }
+                }
+            }
+            gray.release();
+            resizeImage.release();
+            detection_image.release();
+            cv::destroyAllWindows();
+        }
+        catch (...) {
+            return;
+        }
     }
-}
+}PlayerA;
 
-void txtwrite() {
+int main(int argc, char* argv[]) {
+    HideConsoleCursor();
+    std::string path = "Resources\\Blue Archive.mp4";
+    //if (argc > 1) {
+    //    path = argv[1];
+    //}
+    //else {
+    //    printf_s("Using：fileName.exe <filePath>\n");
+    //    printf_s("Ex：fileName.exe \"panda.ma4\"\n");
+    //    return 1;
+    //}
+    cv::VideoCapture cap(path);
+    if (!cap.isOpened()) {
+        MessageBoxW(NULL, L"Error: Failed to load video", L"INFO", MB_ICONERROR);
+        return 1;
+    }
 
-    //PlaySound(TEXT("Resources\\Bad_Apple.wav"), NULL, SND_FILENAME);
-
-    file.open("Resources\\bad_apple.txt");
-    file << save << endl;
-    file.close();
-}
-
-int main(void) {
-
-    //Sleep(10000);
-    terminalset();
-    play();
-
+    double fps = cap.get(cv::CAP_PROP_FPS);
+    int delay = static_cast<int>(1000.0 / fps);
+    PlayerP(cap, delay);
     return 0;
 }

@@ -39,9 +39,9 @@ public:
                     MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
                     break;
                 }
-                int x = GetTerminalSize().first;
-                int y = GetTerminalSize().second;
-                resize(detection_image, resizeImage, cv::Size(x, y - 1));
+                int x = GetTerminalSize().first - 1;
+                int y = GetTerminalSize().second - 1;
+                resize(detection_image, resizeImage, cv::Size(x, y));
 
                 int rowNumber = resizeImage.rows;
                 int colNumber = resizeImage.cols;
@@ -92,9 +92,9 @@ public:
                     MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
                     break;
                 }
-                int x = GetTerminalSize().first;
-                int y = GetTerminalSize().second;
-                resize(detection_image, resizeImage, cv::Size(x, y - 1));
+                int x = GetTerminalSize().first - 1;
+                int y = GetTerminalSize().second - 1;
+                resize(detection_image, resizeImage, cv::Size(x, y));
                 cvtColor(resizeImage, gray, cv::COLOR_BGR2GRAY);
                 bitwise_not(gray, gray);
 
@@ -105,7 +105,11 @@ public:
                 std::stringstream ss;
                 for (int i = 0; i < rowNumber; i++) {
                     for (int j = 0; j < colNumber; j++) {
-                        ss << ascii_char[int(gray.at<uchar>(i, j) / unit)];
+                        int r = resizeImage.at<cv::Vec3b>(i, j)[2];
+                        int g = resizeImage.at<cv::Vec3b>(i, j)[1];
+                        int b = resizeImage.at<cv::Vec3b>(i, j)[0];
+                        ss << GetRGB(r, g, b, ascii_char[int(gray.at<uchar>(i, j) / unit)]);
+                        //ss << ascii_char[int(gray.at<uchar>(i, j) / unit)];
                     }
                     ss << std::endl;
                 }
@@ -152,6 +156,6 @@ int main(int argc, char* argv[]) {
 
     double fps = cap.get(cv::CAP_PROP_FPS);
     int delay = static_cast<int>(1000.0 / fps);
-    PlayerP(cap, delay);
+    PlayerA(cap, delay);
     return 0;
 }

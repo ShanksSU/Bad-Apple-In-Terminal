@@ -1,14 +1,9 @@
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/objdetect.hpp>
-#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <windows.h>
-#include <conio.h>
-#include <string>
 #include <sstream>
-
+#include <string>
+#include <conio.h>
 #define hConsole GetStdHandle(STD_OUTPUT_HANDLE)
 #define ConsoleClear() SetConsoleCursorPosition(hConsole, { 0, 0 })
 #define GetRGB(r, g, b, Pixel) ( \
@@ -33,14 +28,22 @@ public:
     void operator()(cv::VideoCapture cap, int delay) {
         cv::Mat detection_image, resizeImage;
         try {
+            int oldX = 0, oldY = 0;
             while (true) {
+                HideConsoleCursor();
                 bool ref = cap.read(detection_image);
                 if (!ref) {
                     MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
                     break;
                 }
+
                 int x = GetTerminalSize().first - 1;
                 int y = GetTerminalSize().second - 1;
+                if (oldX != x || oldY != y) {
+                    oldX = x;
+                    oldY = y;
+                    system("cls");
+                }
                 resize(detection_image, resizeImage, cv::Size(x, y));
 
                 int rowNumber = resizeImage.rows;
@@ -50,9 +53,10 @@ public:
                 std::stringstream ss;
                 for (int i = 0; i < rowNumber; i++) {
                     for (int j = 0; j < colNumber; j++) {
-                        int r = resizeImage.at<cv::Vec3b>(i, j)[2];
-                        int g = resizeImage.at<cv::Vec3b>(i, j)[1];
-                        int b = resizeImage.at<cv::Vec3b>(i, j)[0];
+                        cv::Vec3b pixel = resizeImage.ptr<cv::Vec3b>(i)[j];
+                        int r = pixel[2];
+                        int g = pixel[1];
+                        int b = pixel[0];
                         ss << GetRGB(r, g, b, "█");
                     }
                     ss << std::endl;
@@ -86,14 +90,22 @@ public:
         float unit = 3.723;
         cv::Mat detection_image, resizeImage, gray;
         try {
+            int oldX = 0, oldY = 0;
             while (true) {
+                HideConsoleCursor();
                 bool ref = cap.read(detection_image);
                 if (!ref) {
                     MessageBoxW(NULL, L"Playback completed", L"INFO", MB_ICONINFORMATION);
                     break;
                 }
+
                 int x = GetTerminalSize().first - 1;
                 int y = GetTerminalSize().second - 1;
+                if (oldX != x || oldY != y) {
+                    oldX = x;
+                    oldY = y;
+                    system("cls");
+                }
                 resize(detection_image, resizeImage, cv::Size(x, y));
                 cvtColor(resizeImage, gray, cv::COLOR_BGR2GRAY);
                 bitwise_not(gray, gray);
@@ -105,15 +117,17 @@ public:
                 std::stringstream ss;
                 for (int i = 0; i < rowNumber; i++) {
                     for (int j = 0; j < colNumber; j++) {
-                        int r = resizeImage.at<cv::Vec3b>(i, j)[2];
-                        int g = resizeImage.at<cv::Vec3b>(i, j)[1];
-                        int b = resizeImage.at<cv::Vec3b>(i, j)[0];
+                        cv::Vec3b pixel = resizeImage.ptr<cv::Vec3b>(i)[j];
+                        int r = pixel[2];
+                        int g = pixel[1];
+                        int b = pixel[0];
                         ss << GetRGB(r, g, b, ascii_char[int(gray.at<uchar>(i, j) / unit)]);
                         //ss << ascii_char[int(gray.at<uchar>(i, j) / unit)];
                     }
                     ss << std::endl;
                 }
                 printf_s("%s", ss.str().c_str());
+
                 gray.release();
                 resizeImage.release();
                 detection_image.release();
@@ -138,8 +152,8 @@ public:
 }PlayerA;
 
 int main(int argc, char* argv[]) {
-    HideConsoleCursor();
-    std::string path = "Resources\\Blue Archive.mp4";
+    
+    std::string path = "Resources\\PV2.mp4";
     //if (argc > 1) {
     //    path = argv[1];
     //}
@@ -156,6 +170,6 @@ int main(int argc, char* argv[]) {
 
     double fps = cap.get(cv::CAP_PROP_FPS);
     int delay = static_cast<int>(1000.0 / fps);
-    PlayerA(cap, delay);
+    PlayerP(cap, delay);
     return 0;
 }
